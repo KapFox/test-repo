@@ -15,20 +15,19 @@ class LLMOrchestrator:
     Поддерживает мультимодальный ввод (скриншоты + текст) и проактивное использование инструментов.
     """
     
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o"):
-        self.api_key = api_key or self._load_api_key()
+    def __init__(self, api_key: str = "not-needed", base_url: str = "http://localhost:1234/v1", model: str = "gemma-2-9b-it"):
+        """
+        Инициализация LLM оркестратора.
+        
+        :param api_key: API ключ (для LM Studio можно использовать любое значение, например 'not-needed')
+        :param base_url: Базовый URL API. По умолчанию локальный сервер LM Studio.
+        :param model: Название модели. Для LM Studio должно совпадать с загруженной моделью (например, 'gemma-2-9b-it').
+        """
+        self.api_key = api_key
+        self.api_base_url = base_url.rstrip('/')
         self.model = model
-        self.api_base_url = "https://api.openai.com/v1"
         self.conversation_history: List[Dict[str, Any]] = []
         self.available_tools = self._define_tools()
-        
-    def _load_api_key(self) -> str:
-        """Загружает API ключ из переменных окружения или файла."""
-        import os
-        key = os.getenv("LLM_API_KEY", "")
-        if not key:
-            print("[LLM_ORCHESTRATOR WARNING] API ключ не найден. Используйте mock-режим или установите LLM_API_KEY.")
-        return key
     
     def _define_tools(self) -> List[Dict[str, Any]]:
         """Определяет доступные инструменты для LLM."""
@@ -165,8 +164,9 @@ class LLMOrchestrator:
         Анализирует скриншот экрана через LLM API.
         Возвращает решение о следующих действиях с координатами и инструментами.
         """
-        if not self.api_key:
-            return self._mock_analyze_screen(screenshot_path, task_context)
+        # Для LM Studio API ключ не обязателен
+        if not self.api_key or self.api_key == "not-needed":
+            print("[LLM_ORCHESTRATOR] Работа с локальным API (LM Studio)")
         
         screenshot_base64 = self.encode_screenshot(screenshot_path)
         
@@ -217,9 +217,11 @@ class LLMOrchestrator:
         try:
             import aiohttp
             headers = {
-                "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json"
             }
+            # Для LM Studio Authorization header не обязателен, но можно добавить если нужен
+            if self.api_key and self.api_key != "not-needed":
+                headers["Authorization"] = f"Bearer {self.api_key}"
             
             payload = {
                 "model": self.model,
@@ -317,8 +319,9 @@ class LLMOrchestrator:
         Обрабатывает воспоминания во время 'сна' агента.
         Структурирует память, выделяет важное, удаляет шум.
         """
-        if not self.api_key:
-            return self._mock_sleep_process(memories)
+        # Для LM Studio API ключ не обязателен
+        if not self.api_key or self.api_key == "not-needed":
+            print("[LLM_ORCHESTRATOR] Обработка сна через локальное API (LM Studio)")
         
         system_prompt = """Ты - система консолидации памяти автономного агента.
 Твоя задача - обработать воспоминания за день и структурировать их.
@@ -345,9 +348,11 @@ class LLMOrchestrator:
         try:
             import aiohttp
             headers = {
-                "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json"
             }
+            # Для LM Studio Authorization header не обязателен, но можно добавить если нужен
+            if self.api_key and self.api_key != "not-needed":
+                headers["Authorization"] = f"Bearer {self.api_key}"
             
             payload = {
                 "model": self.model,
@@ -367,11 +372,13 @@ class LLMOrchestrator:
                     result = await response.json()
                     
                     if response.status != 200:
+                        print(f"[LLM_ORCHESTRATOR ERROR] API вернул ошибку при обработке сна: {result}")
                         return self._mock_sleep_process(memories)
                     
                     content = result["choices"][0]["message"].get("content", "")
                     
                     try:
+                        import re
                         json_match = re.search(r'\{[\s\S]*\}', content)
                         if json_match:
                             return json.loads(json_match.group())

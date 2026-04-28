@@ -21,12 +21,19 @@ class AutonomousAgent:
     использует память для хранения контекста и обучения.
     """
     
-    def __init__(self, headless: bool = False, sleep_cycle_hours: int = 6):
+    def __init__(self, headless: bool = False, sleep_cycle_hours: int = 6, 
+                 llm_api_key: str = "not-needed", 
+                 llm_base_url: str = "http://localhost:1234/v1",
+                 llm_model: str = "gemma-2-9b-it"):
         self.headless = headless
         self.sleep_cycle_hours = sleep_cycle_hours
         self.memory_manager = MemoryManager()
         self.action_executor = ActionExecutor(headless=headless)
-        self.llm_orchestrator = LLMOrchestrator()
+        self.llm_orchestrator = LLMOrchestrator(
+            api_key=llm_api_key,
+            base_url=llm_base_url,
+            model=llm_model
+        )
         
         self.task_context = ""
         self.running = True
@@ -359,10 +366,27 @@ class AutonomousAgent:
 
 async def main():
     """Главная точка входа."""
-    # Создаем агента
+    
+    # Конфигурация LLM из переменных окружения (для LM Studio)
+    llm_api_key = os.getenv("LLM_API_KEY", "not-needed")
+    llm_base_url = os.getenv("LLM_BASE_URL", "http://localhost:1234/v1")
+    llm_model = os.getenv("LLM_MODEL", "gemma-2-9b-it")  # Измените на вашу модель Gemma
+    
+    print("=" * 60)
+    print("🔧 КОНФИГУРАЦИЯ LLM")
+    print("=" * 60)
+    print(f"API Key: {llm_api_key[:10]}..." if llm_api_key != "not-needed" else "API Key: не требуется (LM Studio)")
+    print(f"Base URL: {llm_base_url}")
+    print(f"Model: {llm_model}")
+    print("=" * 60)
+    
+    # Создаем агента с настройками для LM Studio и Gemma
     agent = AutonomousAgent(
         headless=False,  # False для визуального наблюдения
-        sleep_cycle_hours=6
+        sleep_cycle_hours=6,
+        llm_api_key=llm_api_key,
+        llm_base_url=llm_base_url,
+        llm_model=llm_model
     )
     
     try:
